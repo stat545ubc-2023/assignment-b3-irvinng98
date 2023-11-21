@@ -10,4 +10,5 @@ For the purposes of app, we are only using three datasets: Post-Secondary School
 ## How to run the app:
 The app can run either through your browser or locally on R.
 **To run the app through your browser, visit:**
+
 https://fgzvfa-irvinng98.shinyapps.io/PublicSectorSalaries/
