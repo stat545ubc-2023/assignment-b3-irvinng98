@@ -14,5 +14,5 @@ https://fgzvfa-irvinng98.shinyapps.io/PublicSectorSalaries/
 
 **To run the app locally in R, run the following code:**
 ```
-shiny::runGitHub(repo = "stat545ubc-2023/assignment-b3-irvinng98")
+shiny::runGitHub(repo = "stat545ubc-2023/assignment-b3-irvinng98/PublicSectorSalariesApp")
 ```
