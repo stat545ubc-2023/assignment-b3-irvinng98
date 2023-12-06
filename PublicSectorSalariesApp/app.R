@@ -10,6 +10,7 @@ library(scales)
 uni <- read.csv("data/universities.csv", stringsAsFactors = FALSE)
 health <- read.csv("data/health.csv", stringsAsFactors = FALSE)
 schools <- read.csv("data/schools.csv", stringsAsFactors = FALSE)
+government <- read.csv("data/government.csv", stringsAsFactors = FALSE)
 
 # Feature 1: Using Shiny dashboard to structure my app. This allows me to create a structured app where I can have different pages.
 ui <- dashboardPage(
@@ -19,7 +20,8 @@ ui <- dashboardPage(
       menuItem("Home", tabName = "home"),
       menuItem("Post-Secondary School Data", tabName = "tab_uni"),
       menuItem("Healthcare Agency Data", tabName = "tab_health"),
-      menuItem("Public School Data", tabName = "tab_schools")
+      menuItem("Public School Data", tabName = "tab_schools"),
+      menuItem("Government Data", tabName = "tab_government")
     )
   ),
   dashboardBody(
@@ -30,11 +32,26 @@ ui <- dashboardPage(
                 mainPanel(
                   h4("App made by Irvin Ng (STAT545B UBC)"),
                   h3("About"),
-                  p("This is a Shiny app that provides insights into the salaries of public sector employees in BC."),
-                  p("The Vancouver Sun has collected the names and salaries of workers that earn a yearly salary of more than $75,000 in British Columbia."),
-                  p("Please navigate to the tabs on the left to explore the data."),
-                  img(src = "VancouverSun.png") # Feature 2: Adding an image to the UI. In this case, I added a screenshot of the Vancouver Sun Article. This 
-                                                # provides the user with more context regarding the app.
+                  p("This is a Shiny app that provides insights into the salaries of public sector employees in BC in the 2020/2021 fiscal year"),
+                  p("The Vancouver Sun has collected the names and salaries of workers that earn a yearly salary of more 
+                    than $75,000 in British Columbia. Note that some employees earn less than $75,000 but are included in the dataset
+                    due to the significance of their job."),
+                  p("Please navigate to the tabs on the left to explore the data. Within each tab, you'll be able to adjust and filter the datsets
+                    to your pleasing."),
+                  h3("Note to users:"),
+                  p("The data found in this app is from the 2020/2021 fiscal year and the data is dependent upon how an agency tracks its 
+                    employee data. Additionally, the database may be out of date as people may have retired or moved jobs."),
+                  p(),
+                  p(),
+                  p("(App last updated on 2023.12.06)"),
+                  p(),
+                  p(),
+                  img(src = "VancouverSun.png"), # Feature 2: Adding an image to the UI. In this case, I added a screenshot of the Vancouver Sun Article. 
+                  p(),                          
+                  tags$a("Link to Original Vancouver Sun Article", href = "https://vancouversun.com/news/local-news/bc-public-sector-salaries-database-sunshine-list"),
+                  p(),
+                  p(),
+                  tags$a("Link to Data", href = "https://github.com/vs-postmedia/public-sector-salary-data/tree/main/data/public_sector_salary-fy20_21")
                 )
               )
       ),
@@ -136,6 +153,40 @@ ui <- dashboardPage(
                              ),
                              mainPanel(
                                plotOutput("selected_plot_schools")
+                             )
+                           )
+                  )
+                )
+              )
+      ),
+      tabItem(tabName = "tab_government",
+              fluidPage(
+                titlePanel("Government Data"),
+                tabsetPanel(
+                  tabPanel("Table", 
+                           sidebarLayout(
+                             sidebarPanel(
+                               selectInput("filter_government", "Filter by Government Agency:",
+                                           choices = c("All", unique(government$Agency))),
+                               downloadButton("downloadCSV_government", "Download CSV")
+                             ),
+                             mainPanel(
+                               DT::dataTableOutput("table_government"),
+                               textOutput("result_count_government")
+                             )
+                           )
+                  ),
+                  tabPanel("Plots",
+                           sidebarLayout(
+                             sidebarPanel(
+                               h4("Select Plot"),
+                               radioButtons("plot_type_government", "Choose a plot:",
+                                            choices = c("Average Salary", "Total Salary", "Total Employees")),
+                               sliderInput("salary_threshold_government", "Select Salary Threshold:",
+                                           min = 0, max = max(government$Remuneration, na.rm = TRUE), value = 75000)
+                             ),
+                             mainPanel(
+                               plotOutput("selected_plot_government")
                              )
                            )
                   )
@@ -450,6 +501,109 @@ ui <- dashboardPage(
         }
       })
     })
+    
+    ######### Government ##########
+    
+    # Data summary function
+    agency_summary_government <- function(threshold_government, filtered_data_government) {
+      filtered_data_government <- filtered_data_government()
+      
+      # Filter data based on the threshold
+      filtered_data_government <- subset(filtered_data_government, Remuneration > threshold_government)
+      
+      # Calculate total salary
+      total_salary_government <- aggregate(Remuneration ~ Agency, data = filtered_data_government, FUN = sum, na.rm = TRUE)
+      
+      # Calculate total employees
+      total_employees_government <- aggregate(Remuneration ~ Agency, data = filtered_data_government, FUN = length)
+      
+      # Merge total salary and total employees by Agency
+      summarized_data_government <- merge(total_salary_government, total_employees_government, by = "Agency")
+      
+      # Calculate average salary
+      summarized_data_government$AverageSalary <- summarized_data_government$Remuneration.x / summarized_data_government$Remuneration.y
+      
+      # Rename columns
+      colnames(summarized_data_government) <- c("Agency", "TotalSalary", "TotalEmployees", "AverageSalary")
+      
+      return(summarized_data_government)
+    }
+    
+    # Filtered data observer
+    filtered_data_government <- reactive({
+      filtered_government <- government
+      
+      # Filter by selected Agency
+      if (input$filter_government != "All") {
+        filtered_government <- subset(filtered_government, Agency == input$filter_government)
+      }
+      
+      return(filtered_government)
+    })
+    
+    # Observer for table rendering
+    observe({
+      output$table_government <- DT::renderDataTable({
+        DT::datatable(filtered_data_government(), options = list(pageLength = 25))
+      })
+    })
+    
+    # Observer for result count
+    observe({
+      output$result_count_government <- renderText({
+        paste(nrow(filtered_data_government()), " results found")
+      })
+    })
+    
+    # Observer for downloading CSV
+    output$downloadCSV_government <- downloadHandler(
+      filename = function() {
+        paste("filtered_data_government.csv")
+      },
+      content = function(file) {
+        filtered_government <- filtered_data_government()
+        write.csv(filtered_government, file, row.names = FALSE)
+      },
+      contentType = "text/csv"
+    )
+    
+    observe({
+      req(input$downloadCSV_government)
+    })
+    
+    # Observer for selected plot
+    observe({
+      output$selected_plot_government <- renderPlot({
+        req(input$plot_type_government)
+        threshold_government <- input$salary_threshold_government
+        
+        if (input$plot_type_government == "Average Salary") {
+          ggplot(data = agency_summary_government(threshold_government, filtered_data_government), aes(x = Agency, y = AverageSalary)) + 
+            geom_bar(stat = "identity") + 
+            labs(x = "Government Agency", y = "Average Salary", 
+                 title = "Average Salary by Government Agency", 
+                 subtitle = paste("From employees that make above", scales::dollar(threshold_government))) +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+            scale_y_continuous(labels = scales::dollar_format(prefix = "$"))
+        } else if (input$plot_type_government == "Total Salary") {
+          ggplot(data = agency_summary_government(threshold_government, filtered_data_government), aes(x = Agency, y = TotalSalary)) +
+            geom_bar(stat = "identity") + 
+            labs(x = "Government Agency", y = "Total Salary", 
+                 title = "Total Salary by Government Agency", 
+                 subtitle = paste("From employees that make above", scales::dollar(threshold_government))) +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+            scale_y_continuous(labels = scales::dollar_format(prefix = "$"))
+        } else if (input$plot_type_government == "Total Employees") {
+          ggplot(data = agency_summary_government(threshold_government, filtered_data_government), aes(x = Agency, y = TotalEmployees)) +
+            geom_bar(stat = "identity") + 
+            labs(x = "Government Agency", y = "Total Employees",
+                 title = "Number of employees that make above certain salary") +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        }
+      })
+    })
+    
+    
     
 }
   
