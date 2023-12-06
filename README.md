@@ -4,7 +4,7 @@
 ## UPDATE 2023.12.06 (PublicSectorSalariesApp_v1.1.0)
 - Added better explanation and description of the app and the database in the homepage
 - Added an entirely new section to the app showing government data. Just like the previous version, users are able to filter, download and view the data tables and plots.
-- 
+
 ### How to run the app (version 1.1.0):
 The app can run either through your browser or locally on R.
 **To run the newest version of the app through your browser, visit: **
